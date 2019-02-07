@@ -29,7 +29,7 @@ export default class DemographicOverlayContainer {
         );
 
         this.visibilityToggle = toggle(
-            "Visualize demographics",
+            "Show demographics data layer",
             false,
             visible => {
                 if (visible) {
@@ -96,7 +96,7 @@ export default class DemographicOverlayContainer {
     }
 }
 
-const layerDisplayNames = { circle: "Points", fill: "Polygons" };
+const layerDisplayNames = { circle: "sized circles", fill: "shaded regions" };
 
 function getLayerDescription(layer) {
     return { name: layerDisplayNames[layer.type] };

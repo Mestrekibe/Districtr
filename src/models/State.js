@@ -1,9 +1,54 @@
 import { districtColors } from "../colors";
+import { Landmarks } from "../components/Landmark";
 import { addLayers } from "../Map/map";
 import Election from "./Election";
 import IdColumn from "./IdColumn";
 import Part from "./Part";
 import Population from "./Population";
+
+function assignLoadedUnits(state, assignment, remainingUnitIds) {
+    const featuresByUnitId = state.units
+        .queryRenderedFeatures()
+        .reduce((lookup, feature) => {
+            const featureId = state.idColumn.getValue(feature);
+            if (featureId !== undefined && featureId !== null) {
+                return {
+                    ...lookup,
+                    [featureId]: feature
+                };
+            }
+            return lookup;
+        }, {});
+
+    for (let unitId of remainingUnitIds) {
+        const feature = featuresByUnitId[unitId];
+        const hasExpectedData = state.hasExpectedData(feature);
+        if (hasExpectedData) {
+            state.update(feature, assignment[unitId]);
+            state.units.setAssignment(feature, assignment[unitId]);
+            remainingUnitIds.delete(unitId);
+        }
+    }
+    return remainingUnitIds;
+}
+
+function assignUnitsAsTheyLoad(state, assignment) {
+    let remainingUnitIds = new Set(Object.keys(assignment));
+    let intervalId = null;
+    const stop = () => window.clearInterval(intervalId);
+    const callback = () => {
+        if (remainingUnitIds.size == 0) {
+            stop();
+            state.render();
+        }
+        remainingUnitIds = assignLoadedUnits(
+            state,
+            assignment,
+            remainingUnitIds
+        );
+    };
+    intervalId = window.setInterval(callback, 100);
+}
 
 function getParts(problem) {
     let colors = districtColors.slice(0, problem.numberOfParts);
@@ -13,7 +58,9 @@ function getParts(problem) {
         name = problem.name;
     }
 
-    const parts = colors.map(color => new Part(color.id, name, color.hex));
+    const parts = colors.map(
+        color => new Part(color.id, name, color.id + 1, color.hex)
+    );
     return parts;
 }
 
@@ -22,6 +69,9 @@ function getPopulation(place, parts) {
 }
 
 function getElections(place, problem, layer) {
+    if (place.elections.length === 0) {
+        return [];
+    }
     return place.elections.map(
         election =>
             new Election(
@@ -45,7 +95,6 @@ export default class State {
         } else {
             this.id = generateId(8);
         }
-
         this.placeId = place.id;
 
         this.initializeMapState(map, place);
@@ -71,6 +120,10 @@ export default class State {
         this.unitsBorders = unitsBorders;
         this.layers = [units, points];
         this.map = map;
+
+        if (place.landmarks) {
+            this.landmarks = new Landmarks(map, place.landmarks);
+        }
     }
     update(feature, part) {
         this.population.update(feature, part);
@@ -78,6 +131,7 @@ export default class State {
         this.assignment[this.idColumn.getValue(feature)] = part;
     }
     getInitialState(place, assignment, problem) {
+        this.place = place;
         this.idColumn =
             place.idColumn !== undefined
                 ? new IdColumn(place.idColumn)
@@ -90,32 +144,19 @@ export default class State {
         this.elections = getElections(place, problem, this.units);
         this.population = getPopulation(place, this.parts);
 
+        this.columns = [
+            this.population.total,
+            ...this.population.subgroups,
+            ...this.elections.reduce(
+                (cols, election) => [...cols, ...election.columns],
+                []
+            )
+        ];
+
         this.assignment = {};
 
         if (assignment) {
-            this.units.onceLoaded(() => {
-                const features = this.units.query().reduce(
-                    (lookup, feature) => ({
-                        ...lookup,
-                        [this.idColumn.getValue(feature)]: feature
-                    }),
-                    {}
-                );
-                // Q: Should we just keep this data around all the time?
-                const ids = Object.keys(assignment);
-                const numberOfIds = ids.length;
-                for (let i = 0; i < numberOfIds; i++) {
-                    const unitId = ids[i];
-                    if (
-                        features[unitId] === undefined ||
-                        features[unitId] === null
-                    ) {
-                        console.log("Undefined feature: " + unitId);
-                    }
-                    this.update(features[unitId], assignment[unitId]);
-                    this.units.setAssignment(unitId, assignment[unitId]);
-                }
-            });
+            assignUnitsAsTheyLoad(this, assignment);
         }
     }
     exportAsJSON() {
@@ -135,6 +176,22 @@ export default class State {
         for (let f of this.subscribers) {
             f();
         }
+    }
+    supportsEvaluationTab() {
+        return (
+            this.population.subgroups.length > 0 || this.elections.length > 0
+        );
+    }
+    hasExpectedData(feature) {
+        if (feature === undefined || feature.properties === undefined) {
+            return false;
+        }
+        for (let column of this.columns) {
+            if (feature.properties[column.key] === undefined) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
