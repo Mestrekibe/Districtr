@@ -3,52 +3,9 @@ import { Landmarks } from "../components/Landmark";
 import { addLayers } from "../Map/map";
 import Election from "./Election";
 import IdColumn from "./IdColumn";
+import { assignUnitsAsTheyLoad } from "./lib";
 import Part from "./Part";
 import Population from "./Population";
-
-function assignLoadedUnits(state, assignment, remainingUnitIds) {
-    const featuresByUnitId = state.units
-        .queryRenderedFeatures()
-        .reduce((lookup, feature) => {
-            const featureId = state.idColumn.getValue(feature);
-            if (featureId !== undefined && featureId !== null) {
-                return {
-                    ...lookup,
-                    [featureId]: feature
-                };
-            }
-            return lookup;
-        }, {});
-
-    for (let unitId of remainingUnitIds) {
-        const feature = featuresByUnitId[unitId];
-        const hasExpectedData = state.hasExpectedData(feature);
-        if (hasExpectedData) {
-            state.update(feature, assignment[unitId]);
-            state.units.setAssignment(feature, assignment[unitId]);
-            remainingUnitIds.delete(unitId);
-        }
-    }
-    return remainingUnitIds;
-}
-
-function assignUnitsAsTheyLoad(state, assignment) {
-    let remainingUnitIds = new Set(Object.keys(assignment));
-    let intervalId = null;
-    const stop = () => window.clearInterval(intervalId);
-    const callback = () => {
-        if (remainingUnitIds.size == 0) {
-            stop();
-            state.render();
-        }
-        remainingUnitIds = assignLoadedUnits(
-            state,
-            assignment,
-            remainingUnitIds
-        );
-    };
-    intervalId = window.setInterval(callback, 100);
-}
 
 function getParts(problem) {
     let colors = districtColors.slice(0, problem.numberOfParts);
@@ -61,6 +18,13 @@ function getParts(problem) {
     const parts = colors.map(
         color => new Part(color.id, name, color.id + 1, color.hex)
     );
+
+    if (problem.type === "multimember") {
+        parts.slice(1).forEach(part => {
+            part.visible = false;
+        });
+    }
+
     return parts;
 }
 
@@ -163,6 +127,7 @@ export default class State {
         const serialized = {
             assignment: this.assignment,
             id: this.id,
+            idColumn: { key: this.idColumn.key, name: this.idColumn.name },
             placeId: this.placeId,
             problem: this.problem
         };
@@ -179,7 +144,7 @@ export default class State {
     }
     supportsEvaluationTab() {
         return (
-            this.population.subgroups.length > 0 || this.elections.length > 0
+            this.population.subgroups.length > 1 || this.elections.length > 0
         );
     }
     hasExpectedData(feature) {
@@ -217,7 +182,8 @@ function dec2hex(dec) {
 }
 
 function generateId(len) {
-    var arr = new Uint8Array((len || 40) / 2);
-    window.crypto.getRandomValues(arr);
+    const arr = new Uint8Array((len || 40) / 2);
+    const crypto = window.crypto ? window.crypto : window.msCrypto;
+    crypto.getRandomValues(arr);
     return Array.from(arr, dec2hex).join("");
 }

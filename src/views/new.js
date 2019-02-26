@@ -14,12 +14,16 @@ function saveContextToStorage({ place, problem, id, assignment }) {
     localStorage.setItem("assignment", JSON.stringify(assignment));
 }
 
-export function renderNewPlanView() {
+export default function renderNewPlanView() {
     const listOfPlaces = hydratedPlacesList();
     const uploadPlan = new PlanUploader(json => {
         const planRecord = JSON.parse(json);
         listPlaces().then(places => {
-            const place = places.find(p => p.id === planRecord.placeId);
+            const place = places.find(
+                p =>
+                    p.id === planRecord.placeId ||
+                    p.permalink === planRecord.placeId
+            );
             saveContextToStorage({
                 place,
                 problem: planRecord.problem,
@@ -39,5 +43,3 @@ export function renderNewPlanView() {
         document.getElementById("root")
     );
 }
-
-renderNewPlanView();

@@ -69,7 +69,7 @@ function getContextFromStorage() {
     return { place, problem, id: planId, assignment };
 }
 
-export function renderEditView() {
+export default function renderEditView() {
     const context = getContextFromStorage();
 
     const root = document.getElementById("root");
@@ -135,7 +135,7 @@ function getTools(state) {
     return tools;
 }
 
-export default function toolbarView(state) {
+function toolbarView(state) {
     const tools = getTools(state);
     const tabs = getTabs(state);
 
@@ -145,7 +145,7 @@ export default function toolbarView(state) {
             activeElectionIndex: 0
         },
         subgroups: {
-            activeSubgroupIndices: state.problem.relevantSubgroups || [0, 1]
+            activeSubgroupIndices: state.population.indicesOfMajorSubgroups()
         },
         charts: {
             population: { isOpen: true },
@@ -181,7 +181,7 @@ function getMenuItems(state) {
             `
         }
     ];
-    if (state.place.id === "lowell_blocks") {
+    if (state.place.permalink === "lowell_blocks") {
         items = [
             {
                 render: () => html`
@@ -198,5 +198,3 @@ function getMenuItems(state) {
     }
     return items;
 }
-
-renderEditView();

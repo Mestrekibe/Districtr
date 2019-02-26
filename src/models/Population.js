@@ -35,7 +35,6 @@ export default class Population {
                     total: this.total
                 })
         );
-
         this.ideal = this.total.sum / parts.length;
         this.formattedIdeal = numberWithCommas(roundToDecimal(this.ideal, 2));
 
@@ -56,5 +55,16 @@ export default class Population {
     }
     maxDisplayValue() {
         return Math.max(this.ideal * 2, ...this.total.tally.data);
+    }
+    indicesOfMajorSubgroups() {
+        return this.subgroups
+            .map((subgroup, i) => i)
+            .filter(
+                i =>
+                    !this.subgroups[i].name.toLowerCase().includes("voting") &&
+                    this.subgroups[i].sum > this.total.sum * 0.05
+            )
+            .sort((i, j) => this.subgroups[j].sum - this.subgroups[i].sum)
+            .slice(0, 3);
     }
 }
