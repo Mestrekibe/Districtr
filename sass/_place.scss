@@ -1,0 +1,50 @@
+.place {
+    width: 100%;
+    min-height: 100vh;
+    left: 0;
+    color: #444;
+    font-size: 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    position: absolute;
+    justify-content: stretch;
+    align-items: stretch;
+    z-index: 1000;
+}
+
+.place__districting-options {
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.place__content {
+    width: 55%;
+    padding: 0 2rem;
+}
+
+.place__name {
+    font-family: "Playfair Display";
+    font-weight: 700;
+}
+
+.place__map {
+    width: 45%;
+    min-width: 350px;
+    min-height: 100vh;
+}
+
+.place__content p {
+    margin: 0 0 1rem;
+}
+
+@media only screen and (max-width: 800px) {
+    .place {
+        flex-direction: column;
+    }
+    .place__content {
+        width: 100%;
+    }
+    .place__map {
+        width: 100%;
+    }
+}
